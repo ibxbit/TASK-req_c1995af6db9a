@@ -31,7 +31,6 @@ database/*.db
 database/seeds/
 
 # Shell and batch files
-*.sh
 *.bat
 
 # Miscellaneous
