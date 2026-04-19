@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test output and coverage
+coverage/
+*.lcov
+*.coverage
+*.nyc_output
+
+# Database and local data
+database/*.sqlite
+database/*.db
+database/seeds/
+
+# Shell and batch files
+*.sh
+*.bat
+
+# Miscellaneous
+repo/coverage/
+repo/backend/coverage/
+repo/frontend/dist/
+repo/frontend/node_modules/

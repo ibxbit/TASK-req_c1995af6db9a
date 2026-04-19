@@ -1,0 +1,31 @@
+{
+  "name": "roadshowops-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RoadshowOps Operations Suite - Backend (Fastify + PostgreSQL)",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "create-admin": "node src/scripts/create-admin.js",
+    "test:unit": "node --import=../unit_tests/_setup.js run-unit-tests.js",
+    "test:api": "node --test ../API_tests",
+    "test": "npm run test:unit && npm run test:api",
+    "coverage": "c8 node --import=../unit_tests/_setup.js run-unit-tests.js",
+    "coverage:check": "c8 --check-coverage node --import=../unit_tests/_setup.js run-unit-tests.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "c8": "^10.1.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

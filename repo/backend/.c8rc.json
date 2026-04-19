@@ -1,0 +1,22 @@
+{
+  "all": true,
+  "include": [
+    "**/src/**/*.js"
+  ],
+  "exclude": [
+    "**/src/server.js",
+    "**/src/db.js",
+    "**/src/config.js",
+    "**/src/scripts/**",
+    "**/unit_tests/**",
+    "**/API_tests/**"
+  ],
+  "reporter": ["text", "text-summary", "html", "json-summary"],
+  "report-dir": "./coverage",
+  "clean": true,
+  "lines": 95,
+  "functions": 95,
+  "branches": 95,
+  "statements": 95,
+  "temp-directory": "./coverage/.tmp"
+}
