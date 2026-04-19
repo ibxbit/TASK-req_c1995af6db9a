@@ -25,11 +25,6 @@ coverage/
 *.coverage
 *.nyc_output
 
-# Database and local data
-database/*.sqlite
-database/*.db
-database/seeds/
-
 # Shell and batch files
 *.bat
 
