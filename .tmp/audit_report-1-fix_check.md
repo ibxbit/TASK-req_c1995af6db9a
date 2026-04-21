@@ -41,7 +41,12 @@ This report reviews the previously encountered errors from the static audit and 
 ---
 
 ## Residual Non-code Boundaries
-- UI runtime behaviors (browser aesthetics, timers, etc.) require manual verification.
-- Any integration with external systems not covered by static tests.
 
-**All code/test/documentation-fixable errors from the previous audit are now fully addressed.**
+The following items were surfaced in the original audit as outside static-only proof. They are tracked here with explicit status:
+
+| Issue | Status | Notes |
+|-------|--------|-------|
+| UI runtime behaviors (browser aesthetics, drag-and-drop timers, rendering quality) | **Open** | Requires manual browser verification; not addressable by static code/test changes. |
+| Integration with external systems beyond locally-imported file adapters | **Open** | No external service calls in scope; any future integration requires manual smoke testing. |
+
+**All code/test/documentation-fixable errors from the previous audit are now fully addressed. The two Open items above are runtime-only and cannot be closed by static evidence.**

@@ -71,4 +71,11 @@
 
 ## Boundary Note
 
-- Runtime-only items (actual timer behavior and browser rendering quality) still require manual verification and are outside static-only proof.
+The following runtime-only items were identified in the audit scope and are tracked with explicit status:
+
+| Issue | Status | Notes |
+|-------|--------|-------|
+| Actual timer behavior (60-minute reservation release, 5-minute retry intervals) | **Open** | Confirmed correct logic in service code; runtime execution requires integration/E2E test or manual observation. |
+| Browser rendering quality (drag-and-drop UX, conflict flag rendering) | **Open** | Frontend component logic is unit-tested; visual/interactive rendering requires manual browser verification. |
+
+These items are outside the static-only proof boundary and cannot be closed without runtime evidence.

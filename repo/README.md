@@ -147,25 +147,6 @@ Expected terminal output (all suites passing):
 OK: all tests passed.
 ```
 
-### Optional host-side loops (no Docker, faster iteration)
-
-These require a one-time `npm install` on the host and are useful during
-active development. They are **not** the authoritative verification path.
-
-**Backend (unit tests only, DB stubbed):**
-```bash
-cd backend && npm install   # once
-npm run test:unit
-npm run coverage:check      # enforces ≥95% on all four metrics
-```
-
-**Frontend (unit tests only):**
-```bash
-cd frontend && npm install  # once
-npm test
-npm run coverage
-```
-
 ### 4.1 Coverage thresholds
 
 `npm run coverage:check` enforces on backend production code (`backend/src/**`,
