@@ -11,8 +11,10 @@ internet calls at runtime.
 ## 1. One-click start
 
 ```bash
-docker compose up
+docker-compose up
 ```
+
+> On Docker 20.10+ the hyphen-free alias also works: `docker compose up`
 
 That is the only command required. On first run the Postgres volume
 initializes, the backend applies **every migration** (`database/migrations/*.sql`)
@@ -35,7 +37,7 @@ path. The canonical source of truth for the schema is `database/migrations/`.
 
 No manual `.env` edits and no manual SQL imports are needed.
 
-To stop: `docker compose down`. To wipe state and start clean: `docker compose down -v`.
+To stop: `docker-compose down`. To wipe state and start clean: `docker-compose down -v`.
 
 ---
 
@@ -209,7 +211,7 @@ real `pg.Pool` in `src/db.js` is what gets shipped.
   - `intake_edge.test.js` — unlinked intake (order_id = null): city-scoped user → 403 on process and compensate; global user (data.city.all) → passes scope guard; cross-scope bypass check (city 1 clerk cannot process city 2 intake)
   - `bootstrap_integrity.test.js` — required tables, views, and audit sources are reachable after bootstrap
 
-- `frontend/src/` — run via `./run_tests.sh` (step 5) or `cd frontend && npm test`
+- `frontend/src/` — run via `./run_tests.sh` (step 5, inside the frontend container)
   - `App.test.js` — unauthenticated state: title rendered, "Sign in" heading + button visible, no "Sign out" button
   - `lib/session.test.js` — token/me store init from localStorage, setSession, clearSession, permissions derived store, isAuthed, getToken (9 tests)
   - `lib/permissions.test.js` — PERMISSIONS constants, MENU_ITEMS structure (8 items), can() true/false/null-me, visibleMenu filtering (9 tests)

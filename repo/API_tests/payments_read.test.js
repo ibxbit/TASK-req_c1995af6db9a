@@ -1,11 +1,15 @@
 // API tests — payments read endpoints: receipts, refunds, stages, intake, reconciliation
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { apiFetch, loginAdmin, uniq } from './_helpers.js';
 
 const PASS = 'PayRead_Secure12!';
 let adminToken;
 let warehouseToken; // no order.read or payment.collect
+let txFilename;
+let cbFilename;
 
 before(async () => {
   adminToken = await loginAdmin();
@@ -18,6 +22,15 @@ before(async () => {
   });
   const wLogin = await apiFetch('/auth/login', { method: 'POST', body: { username: wName, password: PASS } });
   warehouseToken = wLogin.body.token;
+
+  // Create temp WeChat import files for handler-path tests.
+  // The backend reads from WECHAT_IMPORT_DIR; empty arrays produce a valid 201 with totals.
+  const wechatDir = process.env.WECHAT_IMPORT_DIR || '/app/wechat_imports';
+  fs.mkdirSync(wechatDir, { recursive: true });
+  txFilename = `test-tx-${Date.now()}.json`;
+  cbFilename = `test-cb-${Date.now()}.json`;
+  fs.writeFileSync(path.join(wechatDir, txFilename), JSON.stringify({ transactions: [] }));
+  fs.writeFileSync(path.join(wechatDir, cbFilename), JSON.stringify({ callbacks: [] }));
 });
 
 // ── GET /payments/receipts ────────────────────────────────────────────────────
@@ -116,7 +129,9 @@ test('POST /payments/intake/sweep-retries — 200 with admin', async () => {
   const r = await apiFetch('/payments/intake/sweep-retries', {
     method: 'POST', token: adminToken
   });
-  assert.ok([200, 201].includes(r.status), `status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.equal(r.status, 200, `sweep-retries status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.equal(typeof r.body.processed, 'number', 'response should include numeric processed count');
+  assert.ok(Array.isArray(r.body.results), 'response should include results array');
 });
 
 // ── POST /payments/wechat/import-transactions ─────────────────────────────────
@@ -131,6 +146,19 @@ test('POST /payments/wechat/import-transactions — 400 missing filename', async
   assert.equal(r.status, 400);
 });
 
+test('POST /payments/wechat/import-transactions — 201 empty transactions file', async () => {
+  const r = await apiFetch('/payments/wechat/import-transactions', {
+    method: 'POST', token: adminToken,
+    body: { filename: txFilename }
+  });
+  assert.equal(r.status, 201, `unexpected status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.equal(r.body.filename, txFilename, 'response filename should match request');
+  assert.equal(typeof r.body.totals, 'object', 'response should include totals object');
+  assert.equal(r.body.totals.received, 0, 'empty file should have 0 received');
+  assert.ok(Array.isArray(r.body.imported), 'response should include imported array');
+  assert.ok(Array.isArray(r.body.rejected), 'response should include rejected array');
+});
+
 // ── POST /payments/wechat/import-callbacks ────────────────────────────────────
 test('POST /payments/wechat/import-callbacks — 401 without token', async () => {
   assert.equal((await apiFetch('/payments/wechat/import-callbacks', { method: 'POST', body: {} })).status, 401);
@@ -141,6 +169,18 @@ test('POST /payments/wechat/import-callbacks — 400 missing filename', async ()
     method: 'POST', token: adminToken, body: {}
   });
   assert.equal(r.status, 400);
+});
+
+test('POST /payments/wechat/import-callbacks — 201 empty callbacks file', async () => {
+  const r = await apiFetch('/payments/wechat/import-callbacks', {
+    method: 'POST', token: adminToken,
+    body: { filename: cbFilename }
+  });
+  assert.equal(r.status, 201, `unexpected status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.equal(r.body.filename, cbFilename, 'response filename should match request');
+  assert.equal(typeof r.body.totals, 'object', 'response should include totals object');
+  assert.equal(r.body.totals.received, 0, 'empty file should have 0 received');
+  assert.ok(Array.isArray(r.body.applied), 'response should include applied array');
 });
 
 // ── GET /payments/reconciliation ──────────────────────────────────────────────
@@ -156,5 +196,7 @@ test('GET /payments/reconciliation — 200 with admin', async () => {
   const from = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
   const to = new Date().toISOString().slice(0, 10);
   const r = await apiFetch(`/payments/reconciliation?from=${from}&to=${to}`, { token: adminToken });
-  assert.ok([200, 400].includes(r.status), `status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.equal(r.status, 200, `reconciliation status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.ok(r.body !== null && typeof r.body === 'object' && !Array.isArray(r.body),
+    `expected object response, got: ${JSON.stringify(r.body)}`);
 });

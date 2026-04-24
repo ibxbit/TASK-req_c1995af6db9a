@@ -37,7 +37,7 @@ export async function listDueSources(client, { now = new Date() } = {}) {
       WHERE s.is_active = TRUE
         AND (
               cp.last_run_started_at IS NULL
-           OR cp.last_run_started_at <= $1 - make_interval(hours => s.min_interval_hours)
+           OR cp.last_run_started_at <= $1::timestamptz - make_interval(hours => s.min_interval_hours)
         )
       ORDER BY COALESCE(cp.last_run_started_at, 'epoch'::timestamptz)`,
     [now]

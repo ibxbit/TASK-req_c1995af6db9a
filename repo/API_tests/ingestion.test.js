@@ -81,9 +81,10 @@ test('POST /ingestion/items — 201 happy path with valid records', async () => 
     body: { records: [{ sku, name: 'Ingested Item', unit: 'each', safety_threshold: 5 }] }
   });
   assert.equal(r.status, 201, JSON.stringify(r.body));
-  assert.ok(r.body.inserted >= 0 || r.body.upserted >= 0 || r.body.result !== undefined ||
-            Number(r.body.count) >= 0 || r.body.rows !== undefined,
-    `unexpected response shape: ${JSON.stringify(r.body)}`);
+  assert.ok(r.body.totals, `expected totals object in response: ${JSON.stringify(r.body)}`);
+  assert.equal(r.body.totals.records, 1, 'totals.records should be 1');
+  assert.equal(r.body.totals.inserted + r.body.totals.updated, 1, 'totals should show 1 inserted or updated');
+  assert.equal(r.body.resource, 'items', 'response resource should be "items"');
 });
 
 // ── GET /ingestion/sources ────────────────────────────────────────────────────
@@ -154,19 +155,26 @@ test('POST /ingestion/sources/:id/run — 404 for missing source', async () => {
   assert.equal(r.status, 404);
 });
 
-test('POST /ingestion/sources/:id/run — 200 or 409 for existing source (force=true)', async () => {
+test('POST /ingestion/sources/:id/run — 201 for active source (force=true, missing inbox returns errors in totals)', async () => {
+  // Use a known-good parser_key and matching format to pass the parser check.
+  // The inbox directory won't exist, which is recorded as an error in totals — not a 4xx/5xx.
   const src = await apiFetch('/ingestion/sources', {
     method: 'POST', token: adminToken,
-    body: { code: uniq('SRC3'), label: 'Source 3', resource_type: 'items',
-            fetch_strategy: 'local_file', file_path: '/tmp/s3.json' }
+    body: {
+      code: uniq('SRC3'),
+      parser_key: 'generic_jobs_csv',
+      format: 'csv',
+      inbox_dir: 'nonexistent_test_inbox'
+    }
   });
   assert.equal(src.status, 201);
   const r = await apiFetch(`/ingestion/sources/${src.body.id}/run`, {
     method: 'POST', token: adminToken, body: { force: true }
   });
-  // force=true bypasses the interval lock; may succeed or fail depending on file
-  assert.ok([200, 201, 409, 422, 500].includes(r.status),
-    `unexpected status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.equal(r.status, 201, `unexpected status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.ok(r.body.source_id, 'response should include source_id');
+  assert.ok(r.body.totals, 'response should include totals');
+  assert.equal(typeof r.body.totals.inserted, 'number', 'totals.inserted should be a number');
 });
 
 // ── GET /ingestion/sources/:id/records ───────────────────────────────────────
@@ -179,4 +187,69 @@ test('GET /ingestion/sources/:id/records — 404 for missing source', async () =
 test('GET /ingestion/sources/:id/checkpoint — 404 for missing source', async () => {
   const r = await apiFetch('/ingestion/sources/999999999/checkpoint', { token: adminToken });
   assert.equal(r.status, 404);
+});
+
+// ── PUT /ingestion/sources/:id ────────────────────────────────────────────────
+test('PUT /ingestion/sources/:id — 401 without token', async () => {
+  const r = await apiFetch('/ingestion/sources/1', { method: 'PUT', body: { is_active: false } });
+  assert.equal(r.status, 401);
+});
+
+test('PUT /ingestion/sources/:id — 404 for non-existent source', async () => {
+  const r = await apiFetch('/ingestion/sources/999999999', {
+    method: 'PUT', token: adminToken, body: { is_active: false }
+  });
+  assert.equal(r.status, 404);
+});
+
+test('PUT /ingestion/sources/:id — 400 when min_interval_hours < 6', async () => {
+  const src = await apiFetch('/ingestion/sources', {
+    method: 'POST', token: adminToken,
+    body: { code: uniq('SRC-PUT-BAD') }
+  });
+  assert.equal(src.status, 201);
+  const r = await apiFetch(`/ingestion/sources/${src.body.id}`, {
+    method: 'PUT', token: adminToken, body: { min_interval_hours: 3 }
+  });
+  assert.equal(r.status, 400, `expected 400, got ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.ok(r.body.error, 'error message should be present');
+});
+
+test('PUT /ingestion/sources/:id — 200 updates source config fields', async () => {
+  const src = await apiFetch('/ingestion/sources', {
+    method: 'POST', token: adminToken,
+    body: { code: uniq('SRC-PUT-OK') }
+  });
+  assert.equal(src.status, 201);
+
+  const r = await apiFetch(`/ingestion/sources/${src.body.id}`, {
+    method: 'PUT', token: adminToken,
+    body: { min_interval_hours: 12, is_active: false }
+  });
+  assert.equal(r.status, 200, `PUT source failed: ${JSON.stringify(r.body)}`);
+  assert.equal(r.body.id, src.body.id, 'response id should match created source');
+  assert.equal(Number(r.body.min_interval_hours), 12, 'min_interval_hours should be updated');
+  assert.equal(r.body.is_active, false, 'is_active should be updated to false');
+});
+
+// ── POST /ingestion/sources/tick ──────────────────────────────────────────────
+test('POST /ingestion/sources/tick — 401 without token', async () => {
+  const r = await apiFetch('/ingestion/sources/tick', { method: 'POST', body: {} });
+  assert.equal(r.status, 401);
+});
+
+test('POST /ingestion/sources/tick — 403 without data.ingest', async () => {
+  const r = await apiFetch('/ingestion/sources/tick', {
+    method: 'POST', token: noIngestToken, body: {}
+  });
+  assert.equal(r.status, 403);
+});
+
+test('POST /ingestion/sources/tick — 200 returns checked count and runs array', async () => {
+  const r = await apiFetch('/ingestion/sources/tick', {
+    method: 'POST', token: adminToken, body: {}
+  });
+  assert.equal(r.status, 200, `tick failed: ${JSON.stringify(r.body)}`);
+  assert.equal(typeof r.body.checked, 'number', 'response should include numeric checked count');
+  assert.ok(Array.isArray(r.body.runs), 'response should include runs array');
 });

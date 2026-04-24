@@ -62,9 +62,11 @@ test('GET /venues/drive-time — 401 without token', async () => {
   assert.equal((await apiFetch('/venues/drive-time?origin=1&destination=2')).status, 401);
 });
 
-test('GET /venues/drive-time — 200 or appropriate response for valid venues', async () => {
+test('GET /venues/drive-time — 200 with seeded venues, returns drive-time object', async () => {
   const r = await apiFetch('/venues/drive-time?origin=1&destination=2', { token: adminToken });
-  assert.ok([200, 404, 422].includes(r.status), `unexpected status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.equal(r.status, 200, `unexpected status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.ok(r.body !== null && typeof r.body === 'object', 'expected drive-time object');
+  assert.ok(typeof r.body.source === 'string', 'response should include source field');
 });
 
 // ── POST /venues/drive-time ───────────────────────────────────────────────────
@@ -79,11 +81,12 @@ test('POST /venues/drive-time — 400 missing required fields', async () => {
   assert.equal(r.status, 400);
 });
 
-test('POST /venues/drive-time — 200 or 201 sets drive time', async () => {
-  // Use seeded venue IDs 1 and 2
+test('POST /venues/drive-time — 200 sets manual drive time for seeded venues', async () => {
   const r = await apiFetch('/venues/drive-time', {
     method: 'POST', token: adminToken,
     body: { origin_venue_id: 1, destination_venue_id: 2, minutes: 45 }
   });
-  assert.ok([200, 201, 404].includes(r.status), `status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.equal(r.status, 200, `unexpected status ${r.status}: ${JSON.stringify(r.body)}`);
+  assert.equal(Number(r.body.minutes), 45, 'saved minutes should match request');
+  assert.equal(r.body.source, 'manual', 'saved source should be manual');
 });
